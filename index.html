@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Find water refill stations on campus, log refills, track environmental impact, and compare with friends." />
+<title>Water Refill Station Finder & Impact Tracker</title>
+<link rel="stylesheet" href="lib/leaflet/leaflet.min.css" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header role="banner">
+  <div>
+    <h1>💧 Refill Finder & Impact Tracker</h1>
+    <p>Find refill stations, log refills, track your impact</p>
+  </div>
+  <div class="header-right">
+    <nav role="navigation" aria-label="Main navigation">
+      <button data-view="finder" class="active" aria-current="page">Finder</button>
+      <button data-view="tracker">Tracker</button>
+      <button data-view="leaderboard">Leaderboard</button>
+      <button data-view="add">Manage Stations</button>
+    </nav>
+    <button id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
+  </div>
+</header>
+
+<main role="main">
+
+  <!-- FINDER VIEW -->
+  <section id="finder" class="view active" aria-labelledby="finder-heading">
+    <div class="card">
+      <div id="map" role="application" aria-label="Campus map showing refill stations"></div>
+      <div class="toolbar">
+        <button class="btn secondary" id="locateBtn" aria-label="Find stations near your current location">📍 Find stations near me</button>
+        <button class="btn" id="loadRealBtn" aria-label="Load real water stations from OpenStreetMap near you" style="display:none;">🌐 Load real stations</button>
+        <span class="pill" id="distanceInfo" aria-live="polite" aria-atomic="true"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="align-items:center;">
+        <label for="searchBox" class="sr-only">Search stations</label>
+        <input id="searchBox" placeholder="Search stations by name or building..." aria-describedby="search-hint" />
+      </div>
+      <span id="search-hint" class="sr-only">Type to filter stations by name or building</span>
+      <div class="filters" id="typeFilters" role="group" aria-label="Filter by station type">
+        <span class="pill active" data-type="all" role="button" tabindex="0" aria-pressed="true">All</span>
+        <span class="pill" data-type="fountain" role="button" tabindex="0" aria-pressed="false">⛲ Fountain</span>
+        <span class="pill" data-type="bottle-filler" role="button" tabindex="0" aria-pressed="false">🚰 Bottle Filler</span>
+        <span class="pill" data-type="cooler" role="button" tabindex="0" aria-pressed="false">🧊 Cooler</span>
+        <span class="pill" data-favorites="1" role="button" tabindex="0" aria-pressed="false">⭐ Favorites</span>
+      </div>
+      <div class="station-list" id="stationList" role="list" aria-label="Refill stations"></div>
+    </div>
+  </section>
+
+  <!-- TRACKER VIEW -->
+  <section id="tracker" class="view" aria-labelledby="tracker-heading">
+    <div class="card">
+      <h3 id="tracker-heading">Your Impact</h3>
+      <div class="grid" role="list" aria-label="Impact statistics">
+        <div class="stat" role="listitem"><div class="num" id="statBottles" aria-live="polite">0</div><div class="label">Bottles avoided</div></div>
+        <div class="stat" role="listitem"><div class="num" id="statPlastic" aria-live="polite">0 kg</div><div class="label">Plastic saved</div></div>
+        <div class="stat" role="listitem"><div class="num" id="statCo2" aria-live="polite">0 kg</div><div class="label">CO₂ avoided</div></div>
+        <div class="stat" role="listitem"><div class="num" id="statMoney" aria-live="polite">$0</div><div class="label">Money saved</div></div>
+      </div>
+      <div class="bars" id="weekChart" role="img" aria-label="Weekly refill chart"></div>
+    </div>
+
+    <div class="card">
+      <h3>Log a Refill</h3>
+      <form id="logForm" aria-label="Log refill form">
+        <div class="row">
+          <div style="flex:1; min-width:200px;">
+            <label for="logStation" class="sr-only">Station</label>
+            <select id="logStation" required aria-required="true">
+              <option value="" disabled selected>Select a station</option>
+            </select>
+          </div>
+          <div style="flex:0 0 100px;">
+            <label for="logBottles" class="sr-only">Bottles</label>
+            <input id="logBottles" type="number" min="1" max="100" value="1" placeholder="Bottles" aria-describedby="bottles-hint" required />
+          </div>
+        </div>
+        <span id="bottles-hint" class="sr-only">Number of bottles refilled (1-100)</span>
+        <button class="btn" type="submit">Log Refill</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="row" style="align-items:center; justify-content:space-between;">
+        <h3 style="margin:0;">Refill History</h3>
+        <button class="btn ghost" id="exportCsv" aria-label="Export refill history as CSV">⬇ Export CSV</button>
+      </div>
+      <div id="historyWrap" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- LEADERBOARD VIEW -->
+  <section id="leaderboard" class="view" aria-labelledby="leaderboard-heading">
+    <div class="card">
+      <h3 id="leaderboard-heading">Leaderboard</h3>
+      <p style="color:var(--muted); font-size:.82rem; margin-top:-6px;">
+        Add yourself and friends/dorms manually to compare bottle counts (entries are stored only on this device).
+      </p>
+      <form id="leaderForm" class="row" aria-label="Add leaderboard entry">
+        <div style="flex:1; min-width:200px;">
+          <label for="leaderName" class="sr-only">Name or dorm/team</label>
+          <input id="leaderName" placeholder="Name or dorm/team" required aria-required="true" aria-describedby="leader-name-hint" />
+        </div>
+        <div style="flex:0 0 140px;">
+          <label for="leaderBottles" class="sr-only">Bottles avoided</label>
+          <input id="leaderBottles" type="number" min="0" max="10000" placeholder="Bottles avoided" required aria-describedby="leader-bottles-hint" />
+        </div>
+        <span id="leader-name-hint" class="sr-only">Name of person, dorm, or team</span>
+        <span id="leader-bottles-hint" class="sr-only">Number of bottles avoided (0-10000)</span>
+        <button class="btn" type="submit">Add / Update</button>
+      </form>
+      <div id="leaderList" style="margin-top:12px;" role="list" aria-label="Leaderboard entries"></div>
+    </div>
+  </section>
+
+  <!-- MANAGE STATIONS VIEW -->
+  <section id="add" class="view" aria-labelledby="manage-heading">
+    <div class="card">
+      <h3 id="manage-heading">Add a Refill Station</h3>
+      <form id="addForm" aria-label="Add station form" novalidate>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <label for="addName">Station name <span aria-hidden="true">*</span></label>
+          <input id="addName" placeholder="Station name (e.g. Library 2nd floor)" required aria-required="true" aria-describedby="add-name-hint" maxlength="100" />
+        </div>
+        <span id="add-name-hint" class="sr-only">Name of the refill station, 2-100 characters</span>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <label for="addBuilding">Building / area <span aria-hidden="true">*</span></label>
+          <input id="addBuilding" placeholder="Building / area" required aria-required="true" aria-describedby="add-building-hint" maxlength="100" />
+        </div>
+        <span id="add-building-hint" class="sr-only">Building or area name, at least 2 characters</span>
+        <div class="row">
+          <div style="flex:1; min-width:140px; display:flex; flex-direction:column; gap:4px;">
+            <label for="addLat">Latitude <span aria-hidden="true">*</span></label>
+            <input id="addLat" type="number" step="any" placeholder="Latitude" required aria-required="true" aria-describedby="add-lat-hint" min="-90" max="90" />
+          </div>
+          <div style="flex:1; min-width:140px; display:flex; flex-direction:column; gap:4px;">
+            <label for="addLng">Longitude <span aria-hidden="true">*</span></label>
+            <input id="addLng" type="number" step="any" placeholder="Longitude" required aria-required="true" aria-describedby="add-lng-hint" min="-180" max="180" />
+          </div>
+          <div style="flex:1; min-width:140px; display:flex; flex-direction:column; gap:4px;">
+            <label for="addType">Type <span aria-hidden="true">*</span></label>
+            <select id="addType" required aria-required="true">
+              <option value="fountain">⛲ Fountain</option>
+              <option value="bottle-filler">🚰 Bottle Filler</option>
+              <option value="cooler">🧊 Cooler</option>
+            </select>
+          </div>
+        </div>
+        <span id="add-lat-hint" class="sr-only">Latitude between -90 and 90</span>
+        <span id="add-lng-hint" class="sr-only">Longitude between -180 and 180</span>
+        <button class="btn" type="submit">Add Station</button>
+      </form>
+      <p style="color:var(--muted); font-size:.8rem; margin-top:8px;">Tip: click anywhere on the Finder map — the coordinates fields above auto-fill.</p>
+    </div>
+    <div class="card">
+      <h3>All Stations</h3>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr><th>Name</th><th>Area</th><th>Type</th><th>Status</th><th></th></tr></thead>
+          <tbody id="adminTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Leaflet (local) -->
+<script src="lib/leaflet/leaflet.min.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

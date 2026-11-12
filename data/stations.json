@@ -1,0 +1,6 @@
+[
+  { "id": "s1", "name": "Student Union Fountain", "building": "Student Union", "lat": 29.7604, "lng": -95.3698, "type": "fountain", "status": "ok", "verified": true },
+  { "id": "s2", "name": "Library Main Entrance", "building": "Library", "lat": 29.7614, "lng": -95.3688, "type": "bottle-filler", "status": "ok", "verified": true },
+  { "id": "s3", "name": "Rec Center Lobby", "building": "Rec Center", "lat": 29.7594, "lng": -95.3708, "type": "cooler", "status": "ok", "verified": true },
+  { "id": "s4", "name": "Science Building 1F", "building": "Science Hall", "lat": 29.7624, "lng": -95.3678, "type": "bottle-filler", "status": "ok", "verified": true }
+]
